@@ -565,10 +565,30 @@ func (c *ServerConn) Logout() error {
 
 // Quit issues a QUIT FTP command to properly close the connection from the
 // remote FTP server.
+// NOTE: 
+//	[client] QUIT --> [vsftp]
+//	[vsftp] BYE --> [client]
+//	server side send TCP FIN package to active close after 'BYE'
+// 	at same time, invoke Close in conn will cause client side send the TCP FIN package to server to close the TCP connection
+// 	TCP RST will send at one side because two side close the socket simultaneously.
 func (c *ServerConn) Quit() error {
 	c.conn.Cmd("QUIT")
 	return c.conn.Close()
 }
+
+// Quit issues a QUIT FTP command to the remote FTP server, 
+// the remove FTP server will send the 'BYE' message and 
+// start to close the connection from remote side
+func (c *ServerConn) QuitGrace() error {
+	_, err := c.conn.Cmd("QUIT")
+	return err
+}
+
+// Direct close the connection between client and remote FTP server
+func (c *ServerConn) CloseRude() error {
+	return c.conn.Close()
+}
+
 
 // Read implements the io.Reader interface on a FTP data connection.
 func (r *Response) Read(buf []byte) (int, error) {
